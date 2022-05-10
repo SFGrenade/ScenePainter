@@ -5,6 +5,8 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Xml;
+using Modding;
 using SFCore.Generics;
 using SFCore.Utils;
 using SvgLib;
@@ -136,10 +138,16 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
         backgroundRect.Y = 0;
         backgroundRect.Width = width;
         backgroundRect.Height = height;
+        var backgroundRectElement = backgroundRect.GetElement();
+        backgroundRectElement.SetAttribute("style", $"fill:{GlobalSettings.EmptyColor.Substring(0, GlobalSettings.EmptyColor.Length - 2)}");
         SvgGroup enemyGroup = doc.AddGroup();
         enemyGroup.Fill = GlobalSettings.DamageColor;
+        var enemyElement = enemyGroup.GetElement();
+        enemyElement.SetAttribute("style", $"fill:{GlobalSettings.DamageColor.Substring(0, GlobalSettings.DamageColor.Length - 2)}");
         SvgGroup wallGroup = doc.AddGroup();
         wallGroup.Fill = GlobalSettings.WallColor;
+        var wallElement = wallGroup.GetElement();
+        wallElement.SetAttribute("style", $"fill:{GlobalSettings.WallColor.Substring(0, GlobalSettings.WallColor.Length - 2)}");
 
         List<Collider2D> wallCollider2ds = new List<Collider2D>();
         List<Collider2D> enemyCollider2ds = new List<Collider2D>();
@@ -295,5 +303,13 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
         dir = Quaternion.Euler(angles) * dir; // rotate it
         point = dir + pivot; // calculate rotated point
         return point; // return it
+    }
+}
+
+public static class SvgExtension
+{
+    public static XmlElement GetElement(this SvgElement elem)
+    {
+        return ReflectionHelper.GetField<SvgElement, XmlElement>(elem, "Element");
     }
 }
