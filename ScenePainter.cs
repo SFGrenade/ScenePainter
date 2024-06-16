@@ -29,7 +29,7 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
     private static string _dir;
     private static string _folder = "ScenePainter";
     private static bool _shouldDump = true;
-    
+
     public override List<ValueTuple<string, string>> GetPreloadNames()
     {
         var dict = new List<ValueTuple<string, string>>();
@@ -161,7 +161,7 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                 pgc.pathCount = 1;
                 pgc.autoTiling = true;
                 pgc.points = points.ToArray();
-                
+
                 pgc.enabled = ec.enabled;
                 pgc.isTrigger = ec.isTrigger;
                 pgc.offset = ec.offset;
@@ -171,7 +171,7 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                 pgc.tag = ec.tag;
                 pgc.hideFlags = ec.hideFlags;
                 pgc.name = ec.name;
-                
+
                 UObject.DestroyImmediate(ec);
             }
         }
@@ -190,7 +190,7 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                 }
             }
         }
-        
+
         SetSVG(enemyCollider2ds, enemyGroup, height);
         SetSVG(wallCollider2ds, wallGroup, height);
 
@@ -198,7 +198,7 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
         {
             doc.Save(outputStream);
         }
-        
+
         return true;
     }
 
@@ -216,21 +216,21 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                     {
                         // The collider's centre point in the world
                         Vector3 worldPosition = bcTransform.TransformPoint(0, 0, 0);
-                    
+
                         // STEP 1: FIND LOCAL, UN-ROTATED CORNERS
                         // Find the 4 corners of the BoxCollider2D in LOCAL space, if the BoxCollider2D had never been rotated
                         Vector3 adjustedPoint = point + polygonCollider2D.offset;
                         adjustedPoint.Scale(bcTransform.lossyScale);
-                    
+
                         // STEP 2: ROTATE CORNERS
                         // Rotate those 4 corners around the centre of the collider to match its transform.rotation
                         adjustedPoint = RotatePointAroundPivot(adjustedPoint, Vector3.zero, bcTransform.eulerAngles);
-                    
+
                         // STEP 3: FIND WORLD POSITION OF CORNERS
                         // Add the 4 rotated corners above to our centre position in WORLD space - and we're done!
                         adjustedPoint = worldPosition + adjustedPoint;
                         adjustedPoint.y = height - adjustedPoint.y; // entire thing upside down
-                    
+
                         points.Add(adjustedPoint.x); // .ToString("G", CultureInfo.InvariantCulture)
                         points.Add(adjustedPoint.y);
                     }
@@ -241,20 +241,20 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
             }
             else if (collider2d is CircleCollider2D circleCollider2D)
             {
-                Transform bcTransform = circleCollider2D.transform; 
-                
+                Transform bcTransform = circleCollider2D.transform;
+
                 // The collider's centre point in the world
                 Vector3 worldPosition = bcTransform.TransformPoint(0, 0, 0);
-        
+
                 // STEP 1: FIND LOCAL, UN-ROTATED CORNERS
                 // Find the 4 corners of the BoxCollider2D in LOCAL space, if the BoxCollider2D had never been rotated
                 Vector3 adjustedPoint = circleCollider2D.offset;
                 adjustedPoint.Scale(bcTransform.lossyScale);
-        
+
                 // STEP 2: ROTATE CORNERS
                 // Rotate those 4 corners around the centre of the collider to match its transform.rotation
                 adjustedPoint = RotatePointAroundPivot(adjustedPoint, Vector3.zero, bcTransform.eulerAngles);
-        
+
                 // STEP 3: FIND WORLD POSITION OF CORNERS
                 // Add the 4 rotated corners above to our centre position in WORLD space - and we're done!
                 adjustedPoint = worldPosition + adjustedPoint;
@@ -268,25 +268,25 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
             }
             else if (collider2d is BoxCollider2D boxCollider2D)
             {
-                Transform bcTransform = boxCollider2D.transform; 
-                
+                Transform bcTransform = boxCollider2D.transform;
+
                 // The collider's centre point in the world
                 Vector3 worldPosition = bcTransform.TransformPoint(0, 0, 0);
-        
+
                 // STEP 1: FIND LOCAL, UN-ROTATED CORNERS
                 // Find the 4 corners of the BoxCollider2D in LOCAL space, if the BoxCollider2D had never been rotated
                 Vector3 adjustedPoint = boxCollider2D.offset;
                 adjustedPoint.Scale(bcTransform.lossyScale);
-        
+
                 // STEP 2: ROTATE CORNERS
                 // Rotate those 4 corners around the centre of the collider to match its transform.rotation
                 adjustedPoint = RotatePointAroundPivot(adjustedPoint, Vector3.zero, bcTransform.eulerAngles);
-        
+
                 // STEP 3: FIND WORLD POSITION OF CORNERS
                 // Add the 4 rotated corners above to our centre position in WORLD space - and we're done!
                 adjustedPoint = worldPosition + adjustedPoint;
                 adjustedPoint.y = height - adjustedPoint.y; // entire thing upside down
-                
+
                 SvgRect newElement = group.AddRect();
                 newElement.X = adjustedPoint.x - ((boxCollider2D.size.x / 2) * bcTransform.lossyScale.x);
                 newElement.Y = adjustedPoint.y - ((boxCollider2D.size.y / 2) * bcTransform.lossyScale.y);
