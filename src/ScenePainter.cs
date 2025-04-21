@@ -290,6 +290,17 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                 newElement.Y = adjustedPoint.y - ((boxCollider2D.size.y / 2) * bcTransform.lossyScale.y);
                 newElement.Width = boxCollider2D.size.x * bcTransform.lossyScale.x;
                 newElement.Height = boxCollider2D.size.y * bcTransform.lossyScale.y;
+                // negative scale adjustment
+                if (newElement.Width < 0)
+                {
+                    newElement.X -= Math.Abs(newElement.Width);
+                    newElement.Width *= -1.0;
+                }
+                if (newElement.Height < 0)
+                {
+                    newElement.Y -= Math.Abs(newElement.Height);
+                    newElement.Height *= -1.0;
+                }
             }
         }
     }
