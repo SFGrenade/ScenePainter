@@ -136,43 +136,36 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
         backgroundRect.Y = 0;
         backgroundRect.Width = width;
         backgroundRect.Height = height;
-        var backgroundRectElement = backgroundRect.GetElement();
-        backgroundRectElement.SetAttribute("style", $"fill:{GlobalSettings.EmptyColor.Substring(0, GlobalSettings.EmptyColor.Length - 2)}");
         SvgGroup enemyGroup = doc.AddGroup();
         enemyGroup.Fill = GlobalSettings.DamageColor;
-        var enemyElement = enemyGroup.GetElement();
-        enemyElement.SetAttribute("style", $"fill:{GlobalSettings.DamageColor.Substring(0, GlobalSettings.DamageColor.Length - 2)}");
         SvgGroup wallGroup = doc.AddGroup();
         wallGroup.Fill = GlobalSettings.WallColor;
-        var wallElement = wallGroup.GetElement();
-        wallElement.SetAttribute("style", $"fill:{GlobalSettings.WallColor.Substring(0, GlobalSettings.WallColor.Length - 2)}");
 
         List<Collider2D> wallCollider2ds = new List<Collider2D>();
         List<Collider2D> enemyCollider2ds = new List<Collider2D>();
 
-        foreach (var rootGo in scene.GetRootGameObjects())
-        {
-            foreach (var ec in rootGo.GetComponentsInChildren<EdgeCollider2D>(true))
-            {
-                var pgc = ec.gameObject.AddComponent<PolygonCollider2D>();
-                List<Vector2> points = new List<Vector2>(ec.points);
-                pgc.pathCount = 1;
-                pgc.autoTiling = true;
-                pgc.points = points.ToArray();
-
-                pgc.enabled = ec.enabled;
-                pgc.isTrigger = ec.isTrigger;
-                pgc.offset = ec.offset;
-                pgc.sharedMaterial = ec.sharedMaterial;
-                pgc.usedByComposite = ec.usedByComposite;
-                pgc.usedByEffector = ec.usedByEffector;
-                pgc.tag = ec.tag;
-                pgc.hideFlags = ec.hideFlags;
-                pgc.name = ec.name;
-
-                UObject.DestroyImmediate(ec);
-            }
-        }
+        // foreach (var rootGo in scene.GetRootGameObjects())
+        // {
+        //     foreach (var ec in rootGo.GetComponentsInChildren<EdgeCollider2D>(true))
+        //     {
+        //         var pgc = ec.gameObject.AddComponent<PolygonCollider2D>();
+        //         List<Vector2> points = new List<Vector2>(ec.points);
+        //         pgc.pathCount = 1;
+        //         pgc.autoTiling = true;
+        //         pgc.points = points.ToArray();
+        //         pgc.enabled = ec.enabled;
+        //         pgc.isTrigger = ec.isTrigger;
+        //         pgc.offset = ec.offset;
+        //         pgc.sharedMaterial = ec.sharedMaterial;
+        //         pgc.usedByComposite = ec.usedByComposite;
+        //         pgc.usedByEffector = ec.usedByEffector;
+        //         pgc.tag = ec.tag;
+        //         pgc.hideFlags = ec.hideFlags;
+        //         pgc.name = ec.name;
+        //         customPolygonColliderList.Add(pgc);
+        //         //UObject.DestroyImmediate(ec);
+        //     }
+        // }
 
         foreach (var rootGo in scene.GetRootGameObjects())
         {
@@ -192,6 +185,10 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
         SetSVG(enemyCollider2ds, enemyGroup, height);
         SetSVG(wallCollider2ds, wallGroup, height);
 
+        // foreach (PolygonCollider2D collider2D in customPolygonColliderList)
+        // {
+        //     UObject.DestroyImmediate(collider2D);
+        // }
         using (FileStream outputStream = new FileStream(Path.Combine(_dir, $"{scene.name}.svg"), FileMode.Create))
         {
             doc.Save(outputStream);
@@ -236,6 +233,40 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                     SvgPolygon newElement = group.AddPolygon();
                     newElement.Points = points.ToArray();
                 }
+            }
+            else if (collider2d is EdgeCollider2D edgeCollider2D)
+            {
+                Transform bcTransform = edgeCollider2D.transform;
+
+                List<double> points = new();
+                foreach (var point in edgeCollider2D.points)
+                {
+                    // The collider's centre point in the world
+                    Vector3 worldPosition = bcTransform.TransformPoint(0, 0, 0);
+
+                    // STEP 1: FIND LOCAL, UN-ROTATED CORNERS
+                    // Find the 4 corners of the BoxCollider2D in LOCAL space, if the BoxCollider2D had never been rotated
+                    Vector3 adjustedPoint = point + edgeCollider2D.offset;
+                    adjustedPoint.Scale(bcTransform.lossyScale);
+
+                    // STEP 2: ROTATE CORNERS
+                    // Rotate those 4 corners around the centre of the collider to match its transform.rotation
+                    adjustedPoint = RotatePointAroundPivot(adjustedPoint, Vector3.zero, bcTransform.eulerAngles);
+
+                    // STEP 3: FIND WORLD POSITION OF CORNERS
+                    // Add the 4 rotated corners above to our centre position in WORLD space - and we're done!
+                    adjustedPoint = worldPosition + adjustedPoint;
+                    adjustedPoint.y = height - adjustedPoint.y; // entire thing upside down
+
+                    points.Add(adjustedPoint.x); // .ToString("G", CultureInfo.InvariantCulture)
+                    points.Add(adjustedPoint.y);
+                }
+
+                SvgPolyLine newElement = group.AddPolyLine();
+                newElement.Fill = "none";
+                newElement.Stroke = group.Fill;
+                newElement.StrokeWidth = 0.1;
+                newElement.Points = points.ToArray();
             }
             else if (collider2d is CircleCollider2D circleCollider2D)
             {
