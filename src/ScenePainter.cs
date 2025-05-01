@@ -60,20 +60,28 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
     private void SceneManagerOnSceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
     {
         if (!_shouldDump) return;
-        bool success = MakeTextureFromScene(scene);
+        var (success, reason) = MakeTextureFromScene(scene);
         if (success)
         {
             Log($"Added Texture for scene \"{scene.name}\"!");
+        }
+        else
+        {
+            Log($"ERROR: Couldn't paint scene \"{scene.name}\": {reason}");
         }
     }
 
     private void SceneManagerOnactiveSceneChanged(Scene from, Scene to)
     {
         if (!_shouldDump) return;
-        bool success = MakeTextureFromScene(to);
+        var (success, reason) = MakeTextureFromScene(to);
         if (success)
         {
             Log($"Added Texture for scene \"{to.name}\"!");
+        }
+        else
+        {
+            Log($"ERROR: Couldn't paint scene \"{to.name}\": {reason}");
         }
     }
 
@@ -94,15 +102,19 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
             yield return new WaitWhile(() => !Input.GetKeyDown(KeyCode.K));
 
             UScene scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-            bool success = MakeTextureFromScene(scene);
+            var (success, reason) = MakeTextureFromScene(scene);
             if (success)
             {
                 Log($"Added Texture for scene \"{scene.name}\"!");
             }
+            else
+            {
+                Log($"ERROR: Couldn't paint scene \"{scene.name}\": {reason}");
+            }
         }
     }
 
-    private bool MakeTextureFromScene(UScene scene)
+    private (bool, string) MakeTextureFromScene(UScene scene)
     {
         GameObject tileMapGo = scene.Find($"{scene.name}-TileMap");
         if (tileMapGo == null)
@@ -111,10 +123,10 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
         }
 
         if (tileMapGo == null)
-            return false;
+            return (false, $"Couldn't find '{scene.name}-TileMap' or 'TileMap' GameObject!");
         tk2dTileMap tm = tileMapGo.GetComponent<tk2dTileMap>();
         if (tm == null)
-            return false;
+            return (false, $"Couldn't find 'tk2dTileMap' Component!");
         int width = tm.width;
         int height = tm.height;
 
@@ -171,6 +183,10 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
         {
             foreach (var collider in rootGo.GetComponentsInChildren<Collider2D>(true))
             {
+                if (!(collider.gameObject.activeInHierarchy && collider.enabled))
+                {
+                    continue;
+                }
                 if (collider.gameObject.layer is 0 or 8 && !collider.isTrigger)
                 {
                     wallCollider2ds.Add(collider);
@@ -194,7 +210,7 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
             doc.Save(outputStream);
         }
 
-        return true;
+        return (true, $"");
     }
 
     private void SetSVG(List<Collider2D> colliderList, SvgGroup group, float height)
