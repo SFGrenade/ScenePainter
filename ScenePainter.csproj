@@ -27,6 +27,7 @@
   <ItemGroup>
     <Reference Include="$(HollowKnightRefs)/*.dll" />
     <Reference Condition="!Exists('../SFCore/SFCore.csproj')" Include="$(HollowKnightRefs)/Mods/SFCore/SFCore.dll" />
+    <Reference Condition="!Exists('../SvgLib/SvgLib.csproj')" Include="$(HollowKnightRefs)/Mods/SvgLib/SvgLib.dll" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources" />
@@ -39,8 +40,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Condition="Exists('../SFCore/SFCore.csproj')" Include="../SFCore/SFCore.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="SvgLib" Version="1.0.0.3" />
+    <ProjectReference Condition="Exists('../SvgLib/SvgLib.csproj')" Include="../SvgLib/SvgLib.csproj" />
   </ItemGroup>
 </Project>
