@@ -17,9 +17,10 @@ namespace ScenePainter;
 
 public class ScenePainterGlobalSettings
 {
-    public string EmptyColor = "#FFFFFFFF";
-    public string WallColor = "#000000FF";
-    public string DamageColor = "#FF0000FF";
+    public string EmptyColor = "#FFFFFF";
+    public string WallColor = "#000000";
+    public string DamageColor = "#FF0000";
+    // public string MiscColor = "#0000FF";
 }
 
 public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
@@ -31,8 +32,8 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
     public override List<ValueTuple<string, string>> GetPreloadNames()
     {
         var dict = new List<ValueTuple<string, string>>();
-        int max = 499;
-        for (int i = 6; i < max; i++)
+        int max = UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
+        for (int i = 0; i < max; i++)
         {
             string scenePath = SceneUtility.GetScenePathByBuildIndex(i);
             dict.Add((Path.GetFileNameWithoutExtension(scenePath), "_SceneManager"));
@@ -43,8 +44,6 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
 
     public ScenePainter() : base("Scene Painter")
     {
-        Log("Constructing");
-
         _dir = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? throw new DirectoryNotFoundException("I have no idea how you did this, but good luck figuring it out."), _folder);
         if (!Directory.Exists(_dir))
         {
@@ -53,8 +52,6 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
 
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += SceneManagerOnSceneLoaded;
         UnityEngine.SceneManagement.SceneManager.activeSceneChanged += SceneManagerOnactiveSceneChanged;
-
-        Log("Constructed");
     }
 
     private void SceneManagerOnSceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
@@ -87,12 +84,8 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
 
     public override void Initialize()
     {
-        Log("Initializing");
-
         _shouldDump = false;
         GameManager.instance.StartCoroutine(DumpCurrentScene());
-
-        Log("Initialized");
     }
 
     private IEnumerator DumpCurrentScene()
@@ -116,45 +109,92 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
 
     private (bool, string) MakeTextureFromScene(UScene scene)
     {
-        GameObject tileMapGo = scene.Find($"{scene.name}-TileMap");
-        if (tileMapGo == null)
+        string[] possibleNamesOfTileMapGameObject = new[]
         {
-            tileMapGo = scene.Find("TileMap");
+            $"{scene.name}-TileMap",
+            "TileMap",
+            "Template-TileMap",
+        };
+        GameObject tileMapGo = null;
+        foreach (string name in possibleNamesOfTileMapGameObject)
+        {
+            if (tileMapGo != null)
+            {
+                break;
+            }
+
+            tileMapGo = scene.Find(name);
         }
 
         if (tileMapGo == null)
-            return (false, $"Couldn't find '{scene.name}-TileMap' or 'TileMap' GameObject!");
-        tk2dTileMap tm = tileMapGo.GetComponent<tk2dTileMap>();
-        if (tm == null)
-            return (false, $"Couldn't find 'tk2dTileMap' Component!");
-        int width = tm.width;
-        int height = tm.height;
+        {
+            GameObject[] taggedTileMaps = GameObject.FindGameObjectsWithTag("TileMap");
+            foreach (GameObject gameObject in taggedTileMaps)
+            {
+                if (gameObject.scene.name == scene.name)
+                {
+                    tileMapGo = gameObject;
+                    break;
+                }
+            }
+        }
+
+        int width = -1;
+        int height = -1;
+        if (tileMapGo == null)
+        {
+            // return (false, $"Couldn't find '{string.Join("' or '", possibleNamesOfTileMapGameObject)}' GameObject!");
+        }
+        else
+        {
+            tk2dTileMap tm = tileMapGo.GetComponent<tk2dTileMap>();
+            if (tm == null)
+            {
+                // return (false, $"Couldn't find 'tk2dTileMap' Component!");
+            }
+            else
+            {
+                width = tm.width;
+                height = tm.height;
+            }
+        }
 
         SvgDocument doc = SvgDocument.Create();
         doc.X = 0;
         doc.Y = 0;
-        doc.Width = width;
-        doc.Height = height;
+        doc.Width = (width >= 0) ? width : 2; // -1 means no tilemap found, but we still want to paint the scene, so hopefully 2x2 is enough
+        doc.Height = (height >= 0) ? height : 2; // -1 means no tilemap found, but we still want to paint the scene, so hopefully 2x2 is enough
         doc.ViewBox = new SvgViewBox()
         {
             Top = 0,
             Left = 0,
-            Width = width,
-            Height = height
+            Width = doc.Width,
+            Height = doc.Height
         };
         SvgRect backgroundRect = doc.AddRect();
         backgroundRect.Fill = GlobalSettings.EmptyColor;
+        backgroundRect.FillOpacity = (width >= 0) ? 1.0 : 0.1;
+        backgroundRect.StrokeOpacity = (width >= 0) ? 1.0 : 0.1;
         backgroundRect.X = 0;
         backgroundRect.Y = 0;
-        backgroundRect.Width = width;
-        backgroundRect.Height = height;
+        backgroundRect.Width = doc.Width;
+        backgroundRect.Height = doc.Height;
+        // SvgGroup miscGroup = doc.AddGroup();
+        // miscGroup.Fill = GlobalSettings.MiscColor;
+        // miscGroup.FillOpacity = 0.25;
+        // miscGroup.StrokeOpacity = 0.25;
         SvgGroup enemyGroup = doc.AddGroup();
         enemyGroup.Fill = GlobalSettings.DamageColor;
+        enemyGroup.FillOpacity = 1.0;
+        enemyGroup.StrokeOpacity = 1.0;
         SvgGroup wallGroup = doc.AddGroup();
         wallGroup.Fill = GlobalSettings.WallColor;
+        wallGroup.FillOpacity = 1.0;
+        wallGroup.StrokeOpacity = 1.0;
 
-        List<Collider2D> wallCollider2ds = new List<Collider2D>();
+        // List<Collider2D> miscCollider2ds = new List<Collider2D>();
         List<Collider2D> enemyCollider2ds = new List<Collider2D>();
+        List<Collider2D> wallCollider2ds = new List<Collider2D>();
 
         // foreach (var rootGo in scene.GetRootGameObjects())
         // {
@@ -183,21 +223,22 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
         {
             foreach (var collider in rootGo.GetComponentsInChildren<Collider2D>(true))
             {
-                if (!(collider.gameObject.activeInHierarchy && collider.enabled))
-                {
-                    continue;
-                }
-                if (collider.gameObject.layer is 0 or 8 && !collider.isTrigger)
-                {
-                    wallCollider2ds.Add(collider);
-                }
-                else if (collider.gameObject.layer is 11 or 17 or 23)
+                if (collider.gameObject.layer is 11 or 17 or 23)
                 {
                     enemyCollider2ds.Add(collider);
                 }
+                else if (collider.gameObject.layer is 0 or 8 && !collider.isTrigger)
+                {
+                    wallCollider2ds.Add(collider);
+                }
+                // else
+                // {
+                //     miscCollider2ds.Add(collider);
+                // }
             }
         }
 
+        // SetSVG(miscCollider2ds, miscGroup, height);
         SetSVG(enemyCollider2ds, enemyGroup, height);
         SetSVG(wallCollider2ds, wallGroup, height);
 
@@ -217,6 +258,7 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
     {
         foreach (var collider2d in colliderList)
         {
+            bool colliderIsEnabledAndActive = collider2d.enabled && collider2d.gameObject.activeInHierarchy;
             if (collider2d is PolygonCollider2D polygonCollider2D)
             {
                 Transform bcTransform = polygonCollider2D.transform;
@@ -247,6 +289,8 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                     }
 
                     SvgPolygon newElement = group.AddPolygon();
+                    newElement.FillOpacity = group.FillOpacity * (colliderIsEnabledAndActive ? 1.0 : 0.5);
+                    newElement.StrokeOpacity = group.StrokeOpacity * (colliderIsEnabledAndActive ? 1.0 : 0.5);
                     newElement.Points = points.ToArray();
                 }
             }
@@ -279,6 +323,8 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                 }
 
                 SvgPolyLine newElement = group.AddPolyLine();
+                newElement.FillOpacity = group.FillOpacity * (colliderIsEnabledAndActive ? 1.0 : 0.5);
+                newElement.StrokeOpacity = group.StrokeOpacity * (colliderIsEnabledAndActive ? 1.0 : 0.5);
                 newElement.Fill = "none";
                 newElement.Stroke = group.Fill;
                 newElement.StrokeWidth = 0.1;
@@ -306,6 +352,8 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                 adjustedPoint.y = height - adjustedPoint.y; // entire thing upside down
 
                 SvgEllipse newElement = group.AddEllipse();
+                newElement.FillOpacity = group.FillOpacity * (colliderIsEnabledAndActive ? 1.0 : 0.5);
+                newElement.StrokeOpacity = group.StrokeOpacity * (colliderIsEnabledAndActive ? 1.0 : 0.5);
                 newElement.CX = adjustedPoint.x;
                 newElement.CY = adjustedPoint.y;
                 newElement.RX = circleCollider2D.radius * bcTransform.lossyScale.x;
@@ -333,6 +381,8 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                 adjustedPoint.y = height - adjustedPoint.y; // entire thing upside down
 
                 SvgRect newElement = group.AddRect();
+                newElement.FillOpacity = group.FillOpacity * (colliderIsEnabledAndActive ? 1.0 : 0.5);
+                newElement.StrokeOpacity = group.StrokeOpacity * (colliderIsEnabledAndActive ? 1.0 : 0.5);
                 newElement.X = adjustedPoint.x - ((boxCollider2D.size.x / 2) * bcTransform.lossyScale.x);
                 newElement.Y = adjustedPoint.y - ((boxCollider2D.size.y / 2) * bcTransform.lossyScale.y);
                 newElement.Width = boxCollider2D.size.x * bcTransform.lossyScale.x;
@@ -343,6 +393,7 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
                     newElement.X -= Math.Abs(newElement.Width);
                     newElement.Width *= -1.0;
                 }
+
                 if (newElement.Height < 0)
                 {
                     newElement.Y -= Math.Abs(newElement.Height);
@@ -354,7 +405,8 @@ public class ScenePainter : GlobalSettingsMod<ScenePainterGlobalSettings>
 
     // Helper method courtesy of @aldonaletto
     // http://answers.unity3d.com/questions/532297/rotate-a-vector-around-a-certain-point.html
-    private Vector3 RotatePointAroundPivot(Vector3 point, Vector3 pivot, Vector3 angles) {
+    private Vector3 RotatePointAroundPivot(Vector3 point, Vector3 pivot, Vector3 angles)
+    {
         Vector3 dir = point - pivot; // get point direction relative to pivot
         dir = Quaternion.Euler(angles) * dir; // rotate it
         point = dir + pivot; // calculate rotated point
